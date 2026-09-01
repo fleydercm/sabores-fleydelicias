@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Sabores Fleydelicias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans p-4 sm:p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <script>
+            // Si no ha iniciado sesión, lo redirige automáticamente a la pantalla de login
+            if (localStorage.getItem('admin_logueado') !== 'true') {
+                window.location.href = '/login.html';
+            }
+        </script>
+        
+        <!-- Encabezado -->
+        <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <div>
+                <h1 class="text-2xl font-black text-amber-800">Panel de Pedidos 📋</h1>
+                <p class="text-xs text-gray-500 uppercase tracking-wide mt-1">Sabores Fleydelicias - Gestión en tiempo real</p>
+            </div>
+            
+            <div class="mt-4 sm:mt-0 flex items-center gap-3">
+                <a href="/" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
+                    Ver Página de Clientes ↗
+                </a>
+                <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
+                    Cerrar Sesión 🚪
+                </button>
+            </div>
+        </div>
+
+        <!-- Formulario de Pedido Rápido -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-sm font-black text-amber-900 uppercase tracking-wider mb-4">➕ Registrar Pedido Rápido (Prueba o Teléfono)</h2>
+            <form id="quickOrderForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Nombre</label>
+                    <input type="text" id="qNombre" required placeholder="Ej. Carlos Pérez" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Teléfono</label>
+                    <input type="tel" id="qTelefono" required placeholder="Ej. 3101234567" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Dirección</label>
+                    <input type="text" id="qDireccion" required placeholder="Ej. Calle 10 # 20-30" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Porciones</label>
+                    <input type="number" id="qCantidad" min="1" value="1" required class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow transition duration-200 text-xs uppercase tracking-wide">
+                        Crear Pedido
+                    </button>
+                </div>
+            </form>
+            <div id="quickStatus" class="mt-2 text-xs font-semibold"></div>
+        </div>
+
+        <!-- Tabla de Pedidos -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-amber-50 text-amber-900 text-xs uppercase tracking-wider border-b border-amber-200">
+                            <th class="p-4">Fecha / Hora</th>
+                            <th class="p-4">Cliente</th>
+                            <th class="p-4">Contacto</th>
+                            <th class="p-4">Dirección</th>
+                            <th class="p-4 text-center">Porciones</th>
+                            <th class="p-4 text-center">Total</th>
+                            <th class="p-4 text-center">Pago / Comprobante</th>
+                            <th class="p-4 text-center">Estado</th>
+                            <th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaPedidos" class="divide-y divide-gray-100">
+                        <!-- Los pedidos se cargan aquí automáticamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noPedidos" class="p-8 text-center text-gray-400 text-sm hidden">
+                No hay pedidos registrados todavía.
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección para cambiar usuario y contraseña -->
+    <div id="seccionCambioClave" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mt-6 max-w-6xl mx-auto" style="display: none;">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Cambiar mi Usuario y Contraseña</h3>
+        <p class="text-xs text-gray-500 mb-4">Aquí puedes modificar tus datos de acceso cuando quieras.</p>
+        
+        <div class="flex flex-col sm:flex-row gap-3">
+            <input type="text" id="nuevoUser" placeholder="Nuevo Usuario" class="p-2 border rounded-lg flex-1 text-xs">
+            <input type="password" id="nuevoPass" placeholder="Nueva Contraseña" class="p-2 border rounded-lg flex-1 text-xs">
+            <button onclick="actualizarCredenciales()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-xs">Guardar Cambios</button>
+        </div>
+        <p id="mensajeCambio" class="text-sm mt-2 font-semibold"></p>
+    </div>
+
+    <script>
+        let pedidos = []; 
+
+        async function cargarPedidos() {
+            try {
+                const response = await fetch('/api/pedidos');
+                pedidos = await response.json();
+
+                const tbody = document.getElementById('tablaPedidos');
+                const noPedidos = document.getElementById('noPedidos');
+
+                tbody.innerHTML = '';
+
+                if (!pedidos || pedidos.length === 0) {
+                    noPedidos.classList.remove('hidden');
+                    return;
+                }
+                noPedidos.classList.add('hidden');
+
+                [...pedidos].reverse().forEach(p => {
+                    const total = (parseInt(p.cantidad) || 1) * 30000;
+                    
+                    let badgeColor = 'bg-yellow-100 text-yellow-800';
+                    if (p.estado === 'En camino') badgeColor = 'bg-blue-100 text-blue-800';
+                    if (p.estado === 'Entregado') badgeColor = 'bg-green-100 text-green-800';
+
+                    const comprobanteHtml = p.comprobante && p.comprobante !== 'No adjuntado'
+                        ? `<a href="/uploads/${p.comprobante}" target="_blank" class="text-amber-600 underline font-semibold hover:text-amber-800">Ver foto</a>`
+                        : `<span class="text-gray-400 italic">Efectivo / N/A</span>`;
+
+                    const esPagado = p.pagoEstado === 'Pagado';
+                    const estadoPagoHtml = esPagado 
+                        ? `<div class="mt-1"><span class="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Pagado</span></div>` 
+                        : `<div class="mt-1"><span class="bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold">❌ Debe</span></div>`;
+
+                    const nuevoEstadoPago = esPagado ? 'Debe' : 'Pagado';
+                    const textoBotonPago = esPagado ? 'Marcar Debe' : '💵 Pagado';
+                    const colorBotonPago = esPagado ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-500 hover:bg-teal-600';
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50/80 transition';
+                    tr.innerHTML = `
+                        <td class="p-4 text-xs text-gray-500 whitespace-nowrap">${p.fecha}</td>
+                        <td class="p-4 font-bold text-gray-900">${p.nombre}</td>
+                        <td class="p-4"><a href="https://wa.me/57${p.telefono}" target="_blank" class="text-emerald-600 font-semibold hover:underline">📞 ${p.telefono}</a></td>
+                        <td class="p-4 text-gray-600">${p.direccion}</td>
+                        <td class="p-4 text-center font-bold">${p.cantidad}</td>
+                        <td class="p-4 text-center font-black text-amber-900">$${total.toLocaleString()}</td>
+                        <td class="p-4 text-center">${comprobanteHtml}${estadoPagoHtml}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeColor}">${p.estado || 'Pendiente'}</span>
+                        </td>
+                        <td class="p-4 text-center whitespace-nowrap space-x-1">
+                            <button onclick="actualizarEstado(${p.id}, 'En camino')" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">En camino</button>
+                            <button onclick="actualizarEstado(${p.id}, 'Entregado')" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">Entregado</button>
+                            <button onclick="cambiarPago(${p.id}, '${nuevoEstadoPago}')" class="${colorBotonPago} text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">${textoBotonPago}</button>
+                            <button onclick="editarPedido(${p.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded-lg text-xs font-bold">Editar</button>
+                            <button onclick="eliminarPedido(${p.id})" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg text-xs font-bold">Eliminar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error al cargar pedidos:', error);
+            }
+        }
+
+        async function actualizarEstado(id, nuevoEstado) {
+            try {
+                const res = await fetch(`/api/pedidos/${id}/estado`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                if (res.ok) cargarPedidos();
+            } catch (error) {
+                alert('Error al actualizar el estado');
+            }
+        }
+
+        async function cambiarPago(id, nuevoEstadoPago) {
+            try {
+                const response = await fetch(`/api/pedidos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pagoEstado: nuevoEstadoPago })
+                });
+                if (response.ok) cargarPedidos();
+            } catch (error) {
+                console.error('Error al actualizar el estado de pago:', error);
+            }
+        }
+
+        async function editarPedido(id) {
+            const pedidoActual = pedidos.find(p => p.id == id);
+            if (!pedidoActual) return alert('No se encontró el pedido');
+
+            const nuevoNombre = prompt("Modificar Nombre:", pedidoActual.nombre);
+            if (nuevoNombre === null) return;
+            const nuevoTelefono = prompt("Modificar Teléfono:", pedidoActual.telefono);
+            if (nuevoTelefono === null) return;
+            const nuevaDireccion = prompt("Modificar Dirección:", pedidoActual.direccion);
+            if (nuevaDireccion === null) return;
+            const nuevaCantidad = prompt("Modificar Cantidad (porciones):", pedidoActual.cantidad);
+            if (nuevaCantidad === null) return;
+
+            try {
+                const response = await fetch(`/api/pedidos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        nombre: nuevoNombre || pedidoActual.nombre, 
+                        telefono: nuevoTelefono || pedidoActual.telefono, 
+                        direccion: nuevaDireccion || pedidoActual.direccion, 
+                        cantidad: nuevaCantidad || pedidoActual.cantidad 
+                    })
+                });
+                const result = await response.json();
+                if (result.success) cargarPedidos();
+                else alert('No se pudo modificar el pedido');
+            } catch (error) {
+                alert('Error de conexión al modificar');
+            }
+        }
+
+        async function eliminarPedido(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este pedido?')) {
+                try {
+                    const response = await fetch(`/api/pedidos/${id}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    if (result.success) cargarPedidos();
+                    else alert('No se pudo eliminar el pedido');
+                } catch (error) {
+                    alert('Error de conexión al eliminar');
+                }
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('admin_logueado');
+            localStorage.removeItem('usuario_actual');
+            window.location.href = '/login.html';
+        }
+
+        async function actualizarCredenciales() {
+            const usuario = document.getElementById('nuevoUser').value.trim();
+            const password = document.getElementById('nuevoPass').value.trim();
+            const mensaje = document.getElementById('mensajeCambio');
+
+            if (!usuario || !password) {
+                mensaje.textContent = 'Por favor completa ambos campos.';
+                mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/actualizar-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mensaje.textContent = '¡Credenciales actualizadas con éxito!';
+                    mensaje.className = 'text-sm mt-2 font-semibold text-green-600';
+                    document.getElementById('nuevoUser').value = '';
+                    document.getElementById('nuevoPass').value = '';
+                } else {
+                    mensaje.textContent = 'Error al actualizar las credenciales.';
+                    mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+                }
+            } catch (err) {
+                mensaje.textContent = 'Error de conexión.';
+                mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+            }
+        }
+
+        // Manejar el formulario rápido dentro del admin
+        document.getElementById('quickOrderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const quickStatus = document.getElementById('quickStatus');
+            quickStatus.textContent = 'Guardando pedido...';
+            quickStatus.className = 'mt-2 text-xs font-semibold text-amber-600';
+
+            const formData = new FormData();
+            formData.append('nombre', document.getElementById('qNombre').value);
+            formData.append('telefono', document.getElementById('qTelefono').value);
+            formData.append('direccion', document.getElementById('qDireccion').value);
+            formData.append('cantidad', document.getElementById('qCantidad').value);
+
+            try {
+                const res = await fetch('/api/pedido', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    quickStatus.textContent = '¡Pedido creado con éxito!';
+                    quickStatus.className = 'mt-2 text-xs font-semibold text-green-600';
+                    document.getElementById('quickOrderForm').reset();
+                    cargarPedidos();
+                    setTimeout(() => { quickStatus.textContent = ''; }, 3000);
+                } else {
+                    quickStatus.textContent = 'Error al crear el pedido.';
+                    quickStatus.className = 'mt-2 text-xs font-semibold text-red-600';
+                }
+            } catch (err) {
+                quickStatus.textContent = 'Error de conexión de red.';
+                quickStatus.className = 'mt-2 text-xs font-semibold text-red-600';
+            }
+        });
+
+        // Verificación de visualización de sección de cambio de clave y carga inicial
+        window.addEventListener('DOMContentLoaded', () => {
+            const usuarioActual = localStorage.getItem('usuario_actual');
+            if (usuarioActual === 'admin' || localStorage.getItem('admin_logueado') === 'true') {
+                document.getElementById('seccionCambioClave').style.display = 'block';
+            }
+            cargarPedidos();
+            setInterval(cargarPedidos, 10000);
+        });
+    </script>
+</body>
+</html>
