@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex flex-col justify-center items-center h-screen m-0">
+    <script>
+        // Si ya ha iniciado sesión, redirigir automáticamente al panel de administración
+        if (localStorage.getItem('admin_logueado') === 'true') {
+            window.location.href = '/admin.html';
+        }
+    </script>
+
+    <div class="bg-white p-8 rounded-xl shadow-md w-80">
+        <h2 id="titulo" class="text-xl font-bold mb-4 text-center text-gray-800">Iniciar Sesión</h2>
+        <input type="text" id="user" placeholder="Usuario" class="w-full p-2 mb-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <input type="password" id="pass" placeholder="Contraseña" class="w-full p-2 mb-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <button id="btnAccion" onclick="procesar()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-2 rounded-lg text-sm transition">Entrar</button>
+        <div id="mensaje" class="mt-3 text-center font-semibold text-xs"></div>
+    </div>
+
+    <!-- Opción para cambiar contraseña desde el login -->
+    <div class="mt-4 text-center border-t pt-4 w-80">
+        <button onclick="toggleCambioCredenciales()" type="button" class="text-xs text-amber-700 hover:underline font-semibold focus:outline-none">
+            ¿Deseas cambiar tu usuario o contraseña? ⚙️
+        </button>
+    </div>
+
+    <!-- Panel oculto para actualizar datos -->
+    <div id="panelCambioLogin" class="mt-2 p-4 bg-white rounded-xl border border-gray-200 w-80 shadow-md" style="display: none;">
+        <h4 class="text-sm font-bold text-gray-700 mb-2">Actualizar Datos de Acceso</h4>
+        <input type="text" id="nuevoUserLogin" placeholder="Nuevo Usuario" class="w-full p-2 mb-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        <input type="password" id="nuevoPassLogin" placeholder="Nueva Contraseña" class="w-full p-2 mb-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+        
+        <div class="flex gap-2">
+            <button onclick="actualizarDesdeLogin()" type="button" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3 py-2 rounded-lg flex-1 transition">
+                Guardar Cambios
+            </button>
+            <button onclick="toggleCambioCredenciales()" type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-xs px-3 py-2 rounded-lg transition">
+                Cancelar
+            </button>
+        </div>
+        <p id="mensajeLoginCambio" class="text-xs mt-2 font-semibold text-center"></p>
+    </div>
+
+    <script>
+        // Función de seguridad para escapar caracteres HTML y prevenir ataques XSS
+        function escaparHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/verificar-admin');
+                if (!res.ok) {
+                    console.error('Error al verificar el estado del administrador.');
+                    return;
+                }
+                const data = await res.json();
+                
+                if (!data.creado) {
+                    document.getElementById('titulo').innerText = 'Crear tu Usuario';
+                    const btn = document.getElementById('btnAccion');
+                    btn.innerText = 'Registrar Credenciales';
+                    btn.style.background = '#059669'; // Color esmeralda consistente
+                    window.esRegistro = true;
+                }
+            } catch (error) {
+                console.error('Error al verificar admin:', error);
+            }
+        };
+
+        async function procesar() {
+            const usuario = document.getElementById('user').value.trim();
+            const password = document.getElementById('pass').value.trim();
+            const mensajeDiv = document.getElementById('mensaje');
+
+            if (!usuario || !password) {
+                mensajeDiv.style.color = 'red';
+                mensajeDiv.innerText = 'Llena todos los campos';
+                return;
+            }
+
+            const endpoint = window.esRegistro ? '/api/crear-admin' : '/api/login';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, password })
+                });
+
+                if (res.status === 401 || res.status === 403) {
+                    mensajeDiv.style.color = 'red';
+                    mensajeDiv.innerText = 'Acceso no autorizado o credenciales inválidas.';
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.success) {
+                    if (window.esRegistro) {
+                        alert('¡Usuario creado con éxito! Ahora inicia sesión.');
+                        window.location.reload();
+                    } else {
+                        localStorage.setItem('admin_logueado', 'true');
+                        localStorage.setItem('usuario_actual', usuario);
+                        window.location.href = '/admin.html';
+                    }
+                } else {
+                    mensajeDiv.style.color = 'red';
+                    mensajeDiv.innerText = escaparHTML(data.mensaje || 'Datos incorrectos');
+                }
+            } catch (error) {
+                console.error('Error de red:', error);
+                mensajeDiv.style.color = 'red';
+                mensajeDiv.innerText = 'Error de conexión con el servidor.';
+            }
+        }
+
+        function toggleCambioCredenciales() {
+            const panel = document.getElementById('panelCambioLogin');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function actualizarDesdeLogin() {
+            const usuario = document.getElementById('nuevoUserLogin').value.trim();
+            const password = document.getElementById('nuevoPassLogin').value.trim();
+            const mensaje = document.getElementById('mensajeLoginCambio');
+
+            if (!usuario || !password) {
+                mensaje.style.color = 'red';
+                mensaje.innerText = 'Llena ambos campos';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/actualizar-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, password })
+                });
+
+                if (res.status === 401 || res.status === 403) {
+                    mensaje.style.color = 'red';
+                    mensaje.innerText = 'No autorizado para realizar este cambio.';
+                    return;
+                }
+
+                const data = await res.json();
+                mensaje.style.color = data.success ? 'green' : 'red';
+                mensaje.innerText = escaparHTML(data.mensaje || 'Resultado de actualización');
+
+                if (data.success) {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mensaje.style.color = 'red';
+                mensaje.innerText = 'Error de conexión';
+            }
+        }
+    </script>
+</body>
+</html>
