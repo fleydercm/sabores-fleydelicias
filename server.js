@@ -179,3 +179,36 @@ app.delete('/api/pedidos/:id', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Plataforma segura activa en puerto ${PORT}`);
 });
+
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { success: false, message: 'Demasiados intentos fallidos. Inténtalo más tarde.' }
+});
+
+const DATA_FILE = path.join(__dirname, 'pedidos.json');
+const BACKUP_FILE = path.join(__dirname, 'pedidos_backup.json');
+
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
