@@ -13,7 +13,6 @@ const ADMIN_USER = process.env.ADMIN_USER;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Validación de seguridad estricta: el servidor no arranca si faltan credenciales en el entorno
 if (!ADMIN_USER || !ADMIN_PASS || !JWT_SECRET) {
     console.error("🚨 ERROR CRÍTICO DE SEGURIDAD: Faltan las variables de entorno obligatorias (ADMIN_USER, ADMIN_PASS o JWT_SECRET).");
     process.exit(1);
@@ -28,7 +27,8 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://cdn.tailwindcss.com"],
+            scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "'unsafe-inline'"],
+            scriptSrcAttr: ["'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
             imgSrc: ["'self'", "data:", "blob:"],
             connectSrc: ["'self'"]
