@@ -9,9 +9,15 @@ const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 require('dotenv').config();
 
-const ADMIN_USER = process.env.ADMIN_USER || 'fleydelicias26';
-const ADMIN_PASS = process.env.ADMIN_PASS || '311334FCM';
-const JWT_SECRET = process.env.JWT_SECRET || 'clave_jwt_super_segura_fleydelicias_enterprise_2026';
+const ADMIN_USER = process.env.ADMIN_USER;
+const ADMIN_PASS = process.env.ADMIN_PASS;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Validación de seguridad estricta: el servidor no arranca si faltan credenciales en el entorno
+if (!ADMIN_USER || !ADMIN_PASS || !JWT_SECRET) {
+    console.error("🚨 ERROR CRÍTICO DE SEGURIDAD: Faltan las variables de entorno obligatorias (ADMIN_USER, ADMIN_PASS o JWT_SECRET).");
+    process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,9 +93,9 @@ app.post('/api/login', loginLimiter, (req, res) => {
         const username = req.body.username || req.body.usuario;
         const password = req.body.password;
 
-        if (!username || !password) {
+        if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
             registrarAuditoria('LOGIN_FALLIDO_DATOS_INCOMPLETOS', username || 'Anónimo', req);
-            return res.status(400).json({ success: false, message: 'Faltan datos obligatorios' });
+            return res.status(400).json({ success: false, message: 'Faltan datos obligatorios o formato inválido' });
         }
 
         const usuarioValido = (username === adminConfig.usuario);
@@ -110,9 +116,11 @@ app.post('/api/login', loginLimiter, (req, res) => {
 
         const token = jwt.sign({ usuario: adminConfig.usuario }, JWT_SECRET, { expiresIn: '4h' });
 
+        const isSecureEnv = process.env.NODE_ENV === 'production' || req.secure || req.headers['x-forwarded-proto'] === 'https';
+
         res.cookie('admin_session', token, {
             httpOnly: true,
-            secure: true,
+            secure: isSecureEnv,
             sameSite: 'strict',
             maxAge: 4 * 60 * 60 * 1000
         });
