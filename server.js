@@ -45,27 +45,27 @@ function guardarPedidos(pedidos) {
     fs.writeFileSync(BACKUP_FILE, contenido);
 }
 
-let adminConfig = {
-    usuario: process.env.ADMIN_USER || 'admin',
-    passwordHash: process.env.ADMIN_PASS_HASH || '$2b$10$3N3u5z7fQ2H3K2V1v7N3euK6Z7V4x8V5n2Q3v6Z7V4x8V5n2Q3v6Z'
-};
+const usuarioRender = process.env.ADMIN_USER || 'admin';
+const passwordRender = process.env.ADMIN_PASS || process.env.ADMIN_PASS_HASH || 'fleydelicias2026';
 
 app.post('/api/login', loginLimiter, async (req, res) => {
-   const { username, password } = req.body;
+    const { usuario, password } = req.body;
 
-if (username !== adminConfig.usuario) {
-    return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
-}
+    if (usuario !== usuarioRender) {
+        return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+    }
 
-    let usuarioValido = (username === (process.env.ADMIN_USER || 'admin'));
-    
-    // Comprobación directa en texto plano para evitar errores con hashes de prueba
-    let passwordValida = (password === (process.env.ADMIN_PASS || '311334FCM'));
+    let passwordValida = false;
+    if (passwordRender.startsWith('$2b$')) {
+        passwordValida = await bcrypt.compare(password, passwordRender);
+    } else {
+        passwordValida = (password === passwordRender);
+    }
 
-    if (usuarioValido && passwordValida) {
+    if (passwordValida) {
         res.cookie('admin_session', 'token_autenticado_seguro', {
             httpOnly: true,
-            secure: false, // Permite que funcione en Render sin requerir configuraciones estrictas de HTTPS
+            secure: false, 
             sameSite: 'lax',
             maxAge: 8 * 60 * 60 * 1000
         });
@@ -73,9 +73,7 @@ if (username !== adminConfig.usuario) {
     }
 
     return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
-    }
-
-    res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+});
 });
 
 function verificarSesionAdmin(req, res, next) {
