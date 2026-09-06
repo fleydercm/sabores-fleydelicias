@@ -3,60 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Admin</title>
+    <title>Iniciar Sesión - Sabores Fleydelicias</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-xl shadow-md w-90 max-w-md">
-        <h2 id="titulo" class="text-xl font-bold mb-4 text-center text-gray-800">Panel de Administración</h2>
-        <form class="space-y-4" onsubmit="return false;">
+<body class="bg-gray-100 flex items-center justify-center h-screen font-sans">
+    <div class="bg-white p-8 rounded-2xl shadow-md w-full max-w-sm border border-gray-200">
+        <h1 class="text-xl font-black text-amber-800 text-center mb-1">Sabores Fleydelicias</h1>
+        <p class="text-xs text-gray-500 text-center mb-6">Panel de Administración</p>
+        
+        <form id="loginForm" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Usuario</label>
-                <input type="text" id="username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500">
+                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Usuario</label>
+                <input type="text" id="usuario" required class="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Ingresa tu usuario">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Contraseña</label>
-                <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500">
+                <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Contraseña</label>
+                <input type="password" id="password" required class="w-full p-3 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="••••••••">
             </div>
-            <button type="button" id="btnEntrar" class="w-full py-2 px-4 rounded-md text-white bg-amber-600 hover:bg-amber-700 font-bold transition">
-                Entrar
+            <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold p-3 rounded-xl transition text-xs uppercase tracking-wide">
+                Entrar al Panel
             </button>
         </form>
-        <div id="mensaje" class="mt-3 text-center text-sm"></div>
+        <p id="errorMsg" class="text-red-600 text-xs text-center mt-4 font-semibold hidden"></p>
     </div>
 
     <script>
-        document.getElementById('btnEntrar').addEventListener('click', async function() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const mensaje = document.getElementById('mensaje');
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const usuario = document.getElementById('usuario').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
 
-            if (!username || !password) {
-                mensaje.textContent = 'Por favor completa todos los campos';
-                mensaje.className = 'mt-3 text-center text-sm text-red-600 font-medium';
-                return;
-            }
+            errorMsg.classList.add('hidden');
 
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ usuario, password })
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    localStorage.setItem('admin', 'true');
-                    window.location.href = '/admin';
+                    // Marcamos el localStorage que exige admin.html
+                    localStorage.setItem('admin_logueado', 'true');
+                    localStorage.setItem('usuario_actual', usuario);
+                    window.location.href = '/admin.html';
                 } else {
-                    mensaje.textContent = data.message || 'Credenciales inválidas';
-                    mensaje.className = 'mt-3 text-center text-sm text-red-600 font-medium';
+                    errorMsg.textContent = data.message || 'Usuario o contraseña incorrectos';
+                    errorMsg.classList.remove('hidden');
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                mensaje.textContent = 'Error de conexión con el servidor';
-                mensaje.className = 'mt-3 text-center text-sm text-red-600 font-medium';
+            } catch (err) {
+                console.error('Error de red:', err);
+                errorMsg.textContent = 'Error de conexión con el servidor.';
+                errorMsg.classList.remove('hidden');
             }
         });
     </script>
