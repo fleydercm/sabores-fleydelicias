@@ -23,9 +23,17 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-// Desactivamos CSP para evitar bloqueos con scripts/estilos en línea o CDNs de terceros
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "'unsafe-inline'"],
+            scriptSrcAttr: ["'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'"]
+        }
+    }
 }));
 
 app.use(express.json());
@@ -239,4 +247,4 @@ app.delete('/api/pedidos/:id', verificarSesionAdmin, (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Servidor de Grado Empresarial activo en puerto ${PORT}`);
-});s
+});
