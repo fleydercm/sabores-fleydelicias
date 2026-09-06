@@ -2,7 +2,6 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
@@ -14,7 +13,7 @@ const ADMIN_PASS = process.env.ADMIN_PASS;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!ADMIN_USER || !ADMIN_PASS || !JWT_SECRET) {
-    console.error("🚨 ERROR CRÍTICO DE SEGURIDAD: Faltan las variables de entorno obligatorias (ADMIN_USER, ADMIN_PASS o JWT_SECRET).");
+    console.error("🚨 ERROR CRÍTICO: Faltan las variables de entorno obligatorias (ADMIN_USER, ADMIN_PASS o JWT_SECRET).");
     process.exit(1);
 }
 
@@ -23,18 +22,12 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "https://cdn.tailwindcss.com", "'unsafe-inline'"],
-            scriptSrcAttr: ["'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
-            imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'"]
-        }
-    }
-}));
+// Middleware manual para eliminar por completo cualquier bloqueo de CSP y permitir scripts en línea
+app.use((req, res, next) => {
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: https: http: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';");
+    next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -46,12 +39,10 @@ function registrarAuditoria(accion, usuario, req) {
     const timestamp = new Date().toISOString();
     const ip = req.ip || req.headers['x-forwarded-for'] || 'Desconocida';
     const logEntry = `[${timestamp}] | IP: ${ip} | Usuario: ${usuario} | Acción: ${accion}`;
-    console.warn(`🚨 ALERTA DE SEGURIDAD: ${logEntry}`);
+    console.warn(`🚨 ALERTA: ${logEntry}`);
     try {
         fs.appendFileSync(AUDIT_FILE, logEntry + '\n');
-    } catch (e) {
-        // Ignorar error de archivo local
-    }
+    } catch (e) {}
 }
 
 app.get('/admin', (req, res) => {
@@ -61,8 +52,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
-    message: { success: false, message: 'Demasiados intentos fallidos. Acceso bloqueado temporalmente por seguridad.' }
+    max: 20,
+    message: { success: false, message: 'Demasiados intentos fallidos. Intente más tarde.' }
 });
 
 const DATA_FILE = path.join(__dirname, 'pedidos.json');
@@ -94,13 +85,13 @@ app.post('/api/login', loginLimiter, (req, res) => {
         const password = req.body.password;
 
         if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
-            registrarAuditoria('LOGIN_FALLIDO_DATOS_INCOMPLETOS', username || 'Anónimo', req);
-            return res.status(400).json({ success: false, message: 'Faltan datos obligatorios o formato inválido' });
+            registrarAuditoria('LOGIN_FALLIDO_DATOS', username || 'Anónimo', req);
+            return res.status(400).json({ success: false, message: 'Faltan datos obligatorios' });
         }
 
         const usuarioValido = (username === adminConfig.usuario);
-
         let passwordValida = false;
+        
         if (usuarioValido) {
             const passBuffer = Buffer.from(password);
             const expectedBuffer = Buffer.from(adminConfig.password);
@@ -110,12 +101,11 @@ app.post('/api/login', loginLimiter, (req, res) => {
         }
 
         if (!usuarioValido || !passwordValida) {
-            registrarAuditoria('LOGIN_FALLIDO_CREDENCIALES_INVALIDAS', username, req);
+            registrarAuditoria('LOGIN_FALLIDO_CREDENCIALES', username, req);
             return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
         }
 
         const token = jwt.sign({ usuario: adminConfig.usuario }, JWT_SECRET, { expiresIn: '4h' });
-
         const isSecureEnv = process.env.NODE_ENV === 'production' || req.secure || req.headers['x-forwarded-proto'] === 'https';
 
         res.cookie('admin_session', token, {
@@ -129,23 +119,22 @@ app.post('/api/login', loginLimiter, (req, res) => {
         return res.json({ success: true, message: 'Autenticación exitosa' });
     } catch (err) {
         console.error(err);
-        return res.status(500).json({ success: false, message: 'Error interno crítico del servidor' });
+        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 });
 
 function verificarSesionAdmin(req, res, next) {
     const token = req.cookies.admin_session;
     if (!token) {
-        return res.status(403).json({ success: false, message: 'Acceso denegado: Token de sesión ausente' });
+        return res.status(403).json({ success: false, message: 'Token de sesión ausente' });
     }
-
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.adminUser = decoded.usuario;
         next();
     } catch (err) {
-        registrarAuditoria('SESION_INVALIDA_O_EXPIRADA', 'Desconocido', req);
-        return res.status(403).json({ success: false, message: 'Sesión expirada o inválida. Inicie sesión nuevamente.' });
+        registrarAuditoria('SESION_INVALIDA', 'Desconocido', req);
+        return res.status(403).json({ success: false, message: 'Sesión expirada o inválida' });
     }
 }
 
@@ -158,10 +147,10 @@ app.post('/api/actualizar-admin', verificarSesionAdmin, (req, res) => {
     try {
         adminConfig.usuario = usuario;
         adminConfig.password = password;
-        registrarAuditoria('ACTUALIZACION_CREDENCIALES_ADMIN', req.adminUser, req);
-        res.json({ success: true, message: 'Credenciales corporativas actualizadas correctamente' });
+        registrarAuditoria('ACTUALIZACION_ADMIN', req.adminUser, req);
+        res.json({ success: true, message: 'Credenciales corporativas actualizadas' });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Error al actualizar credenciales' });
+        res.status(500).json({ success: false, message: 'Error al actualizar' });
     }
 });
 
@@ -188,7 +177,7 @@ const upload = multer({
         if (permitidos.test(file.mimetype) && permitidos.test(path.extname(file.originalname).toLowerCase())) {
             return cb(null, true);
         }
-        cb(new Error('Formato de imagen no permitido'));
+        cb(new Error('Formato no permitido'));
     }
 });
 
@@ -210,7 +199,7 @@ app.post('/api/pedido', upload.single('comprobante'), (req, res) => {
         guardarPedidos(pedidos);
         res.status(201).json({ success: true, pedido: nuevo });
     } catch (err) {
-        res.status(500).json({ success: false, message: 'Error interno al registrar el pedido' });
+        res.status(500).json({ success: false, message: 'Error interno' });
     }
 });
 
@@ -219,7 +208,7 @@ app.put('/api/pedidos/:id', verificarSesionAdmin, (req, res) => {
         const id = parseInt(req.params.id);
         const pedidos = leerPedidos();
         const idx = pedidos.findIndex(p => p.id === id);
-        if (idx === -1) return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+        if (idx === -1) return res.status(404).json({ success: false, message: 'No encontrado' });
 
         pedidos[idx] = { ...pedidos[idx], ...req.body };
         guardarPedidos(pedidos);
@@ -235,7 +224,7 @@ app.delete('/api/pedidos/:id', verificarSesionAdmin, (req, res) => {
         const id = parseInt(req.params.id);
         let pedidos = leerPedidos();
         const filtrados = pedidos.filter(p => p.id !== id);
-        if (filtrados.length === pedidos.length) return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+        if (filtrados.length === pedidos.length) return res.status(404).json({ success: false, message: 'No encontrado' });
 
         guardarPedidos(filtrados);
         registrarAuditoria(`ELIMINAR_PEDIDO_${id}`, req.adminUser, req);
@@ -246,5 +235,5 @@ app.delete('/api/pedidos/:id', verificarSesionAdmin, (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor de Grado Empresarial activo en puerto ${PORT}`);
+    console.log(`Servidor activo en puerto ${PORT}`);
 });
