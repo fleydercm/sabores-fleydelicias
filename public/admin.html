@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Sabores Fleydelicias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (localStorage.getItem('admin_logueado') !== 'true') {
+            window.location.href = '/login.html';
+        }
+    </script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans p-4 sm:p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Encabezado -->
+        <div class="flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <div>
+                <h1 class="text-2xl font-black text-amber-800">Panel de Pedidos 📋</h1>
+                <p class="text-xs text-gray-500 uppercase tracking-wide mt-1">Sabores Fleydelicias - Gestión en tiempo real</p>
+            </div>
+            
+            <div class="mt-4 sm:mt-0 flex items-center gap-3">
+                <a href="/" target="_blank" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
+                    Ver Página de Clientes ↗
+                </a>
+                <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
+                    Cerrar Sesión 🚪
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjetas de Resumen Global (Porciones y Dinero) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-amber-50 border border-amber-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Total de Porciones Vendidas</p>
+                    <h3 id="lblTotalPorciones" class="text-3xl font-black text-amber-900 mt-1">0</h3>
+                </div>
+                <span class="text-3xl">🍲</span>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                <div>
+                    <p class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">Dinero Total Acumulado</p>
+                    <h3 id="lblTotalDinero" class="text-3xl font-black text-emerald-900 mt-1">$0</h3>
+                </div>
+                <span class="text-3xl">💰</span>
+            </div>
+        </div>
+
+        <!-- Formulario de Pedido Rápido -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <h2 class="text-sm font-black text-amber-900 uppercase tracking-wider mb-4">➕ Registrar Pedido Rápido (Prueba o Teléfono)</h2>
+            <form id="quickOrderForm" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Nombre</label>
+                    <input type="text" id="qNombre" required placeholder="Ej. Carlos Pérez" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Teléfono</label>
+                    <input type="tel" id="qTelefono" required placeholder="Ej. 3101234567" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Dirección</label>
+                    <input type="text" id="qDireccion" required placeholder="Ej. Calle 10 # 20-30" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Porciones</label>
+                    <input type="number" id="qCantidad" min="1" value="1" required class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow transition duration-200 text-xs uppercase tracking-wide">
+                        Crear Pedido
+                    </button>
+                </div>
+            </form>
+            <div id="quickStatus" class="mt-2 text-xs font-semibold"></div>
+        </div>
+
+        <!-- Tabla de Pedidos -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-amber-50 text-amber-900 text-xs uppercase tracking-wider border-b border-amber-200">
+                            <th class="p-4">Fecha / Hora</th>
+                            <th class="p-4">Cliente</th>
+                            <th class="p-4">Contacto</th>
+                            <th class="p-4">Dirección</th>
+                            <th class="p-4 text-center">Porciones</th>
+                            <th class="p-4 text-center">Total</th>
+                            <th class="p-4 text-center">Pago / Comprobante</th>
+                            <th class="p-4 text-center">Estado</th>
+                            <th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaPedidos" class="divide-y divide-gray-100">
+                        <!-- Pedidos inyectados por JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="noPedidos" class="p-8 text-center text-gray-400 text-sm hidden">
+                No hay pedidos registrados todavía.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar -->
+    <div id="modalEditar" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <h3 class="text-lg font-bold text-amber-900 mb-4">✏️ Editar Pedido</h3>
+            <input type="hidden" id="editId">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Nombre</label>
+                    <input type="text" id="editNombre" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Teléfono</label>
+                    <input type="tel" id="editTelefono" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Dirección</label>
+                    <input type="text" id="editDireccion" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Porciones</label>
+                    <input type="number" id="editCantidad" min="1" class="w-full p-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="cerrarModalEditar()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold px-4 py-2 rounded-xl text-xs">Cancelar</button>
+                <button onclick="guardarEdicionPedido()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-xs">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección Credenciales -->
+    <div id="seccionCambioClave" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mt-6 max-w-6xl mx-auto">
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Cambiar mi Usuario y Contraseña</h3>
+        <p class="text-xs text-gray-500 mb-4">Aquí puedes modificar tus datos de acceso cuando quieras.</p>
+        
+        <div class="flex flex-col sm:flex-row gap-3">
+            <input type="text" id="nuevoUser" placeholder="Nuevo Usuario" class="p-2 border rounded-lg flex-1 text-xs">
+            <input type="password" id="nuevoPass" placeholder="Nueva Contraseña" class="p-2 border rounded-lg flex-1 text-xs">
+            <button onclick="actualizarCredenciales()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-xs">Guardar Cambios</button>
+        </div>
+        <p id="mensajeCambio" class="text-sm mt-2 font-semibold"></p>
+    </div>
+
+    <script>
+        let pedidos = []; 
+
+        function escaparHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function cargarPedidos() {
+            try {
+                const response = await fetch('/api/pedidos');
+                if (response.status === 401 || response.status === 403) {
+                    cerrarSesion();
+                    return;
+                }
+                pedidos = await response.json();
+
+                const tbody = document.getElementById('tablaPedidos');
+                const noPedidos = document.getElementById('noPedidos');
+                tbody.innerHTML = '';
+
+                if (!pedidos || pedidos.length === 0) {
+                    noPedidos.classList.remove('hidden');
+                    document.getElementById('lblTotalPorciones').textContent = '0';
+                    document.getElementById('lblTotalDinero').textContent = '$0';
+                    return;
+                }
+                noPedidos.classList.add('hidden');
+
+                let acumuladoPorciones = 0;
+                let acumuladoDinero = 0;
+
+                [...pedidos].reverse().forEach(p => {
+                    const cantidad = parseInt(p.cantidad) || 1;
+                    const total = cantidad * 30000;
+                    
+                    acumuladoPorciones += cantidad;
+                    acumuladoDinero += total;
+
+                    let badgeColor = 'bg-yellow-100 text-yellow-800';
+                    if (p.estado === 'En camino') badgeColor = 'bg-blue-100 text-blue-800';
+                    if (p.estado === 'Entregado') badgeColor = 'bg-green-100 text-green-800';
+
+                    const comprobanteHtml = p.comprobante && p.comprobante !== 'No adjuntado'
+                        ? `<a href="/uploads/${escaparHTML(p.comprobante)}" target="_blank" class="text-amber-600 underline font-semibold hover:text-amber-800">Ver foto</a>`
+                        : `<span class="text-gray-400 italic">Efectivo / N/A</span>`;
+
+                    const esPagado = p.pagoEstado === 'Pagado';
+                    const estadoPagoHtml = esPagado 
+                        ? `<div class="mt-1"><span class="bg-teal-100 text-teal-800 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Pagado</span></div>` 
+                        : `<div class="mt-1"><span class="bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold">❌ Debe</span></div>`;
+
+                    const nuevoEstadoPago = esPagado ? 'Debe' : 'Pagado';
+                    const textoBotonPago = esPagado ? 'Marcar Debe' : '💵 Pagado';
+                    const colorBotonPago = esPagado ? 'bg-amber-500 hover:bg-amber-600' : 'bg-teal-500 hover:bg-teal-600';
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50/80 transition';
+                    tr.innerHTML = `
+                        <td class="p-4 text-xs text-gray-500 whitespace-nowrap">${escaparHTML(p.fecha)}</td>
+                        <td class="p-4 font-bold text-gray-900">${escaparHTML(p.nombre)}</td>
+                        <td class="p-4"><a href="https://wa.me/57${escaparHTML(p.telefono)}" target="_blank" class="text-emerald-600 font-semibold hover:underline">📞 ${escaparHTML(p.telefono)}</a></td>
+                        <td class="p-4 text-gray-600">${escaparHTML(p.direccion)}</td>
+                        <td class="p-4 text-center font-bold">${cantidad}</td>
+                        <td class="p-4 text-center font-black text-amber-900">$${total.toLocaleString()}</td>
+                        <td class="p-4 text-center">${comprobanteHtml}${estadoPagoHtml}</td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeColor}">${escaparHTML(p.estado || 'Pendiente')}</span>
+                        </td>
+                        <td class="p-4 text-center whitespace-nowrap space-x-1">
+                            <button onclick="actualizarEstado(${p.id}, 'En camino')" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">En camino</button>
+                            <button onclick="actualizarEstado(${p.id}, 'Entregado')" class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">Entregado</button>
+                            <button onclick="cambiarPago(${p.id}, '${nuevoEstadoPago}')" class="${colorBotonPago} text-white px-2 py-1 rounded-lg text-xs font-semibold shadow-sm transition">${textoBotonPago}</button>
+                            <button onclick="editarPedido(${p.id})" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-1 rounded-lg text-xs font-bold">Editar</button>
+                            <button onclick="eliminarPedido(${p.id})" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg text-xs font-bold">Eliminar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Actualizar los valores en las tarjetas superiores
+                document.getElementById('lblTotalPorciones').textContent = acumuladoPorciones;
+                document.getElementById('lblTotalDinero').textContent = '$' + acumuladoDinero.toLocaleString();
+
+            } catch (error) {
+                console.error('Error al cargar pedidos:', error);
+            }
+        }
+
+        async function actualizarEstado(id, nuevoEstado) {
+            try {
+                const res = await fetch(`/api/pedidos/${id}/estado`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                if (res.ok) cargarPedidos();
+            } catch (error) {
+                alert('Error al actualizar el estado');
+            }
+        }
+
+        async function cambiarPago(id, nuevoEstadoPago) {
+            try {
+                const response = await fetch(`/api/pedidos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pagoEstado: nuevoEstadoPago })
+                });
+                if (response.ok) cargarPedidos();
+            } catch (error) {
+                console.error('Error al actualizar pago:', error);
+            }
+        }
+
+        function editarPedido(id) {
+            const pedidoActual = pedidos.find(p => p.id == id);
+            if (!pedidoActual) return alert('No se encontró el pedido');
+
+            document.getElementById('editId').value = pedidoActual.id;
+            document.getElementById('editNombre').value = pedidoActual.nombre || '';
+            document.getElementById('editTelefono').value = pedidoActual.telefono || '';
+            document.getElementById('editDireccion').value = pedidoActual.direccion || '';
+            document.getElementById('editCantidad').value = pedidoActual.cantidad || 1;
+
+            document.getElementById('modalEditar').classList.remove('hidden');
+        }
+
+        function cerrarModalEditar() {
+            document.getElementById('modalEditar').classList.add('hidden');
+        }
+
+        async function guardarEdicionPedido() {
+            const id = document.getElementById('editId').value;
+            const nombre = document.getElementById('editNombre').value.trim();
+            const telefono = document.getElementById('editTelefono').value.trim();
+            const direccion = document.getElementById('editDireccion').value.trim();
+            const cantidad = document.getElementById('editCantidad').value;
+
+            try {
+                const response = await fetch(`/api/pedidos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, telefono, direccion, cantidad })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    cerrarModalEditar();
+                    cargarPedidos();
+                } else {
+                    alert('No se pudo modificar');
+                }
+            } catch (error) {
+                alert('Error de conexión');
+            }
+        }
+
+        async function eliminarPedido(id) {
+            if (confirm('¿Estás seguro de eliminar este pedido?')) {
+                try {
+                    const response = await fetch(`/api/pedidos/${id}`, { method: 'DELETE' });
+                    const result = await response.json();
+                    if (result.success) cargarPedidos();
+                } catch (error) {
+                    alert('Error de red');
+                }
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem('admin_logueado');
+            localStorage.removeItem('usuario_actual');
+            window.location.href = '/login.html';
+        }
+
+        async function actualizarCredenciales() {
+            const usuario = document.getElementById('nuevoUser').value.trim();
+            const password = document.getElementById('nuevoPass').value.trim();
+            const mensaje = document.getElementById('mensajeCambio');
+
+            if (!usuario || !password) {
+                mensaje.textContent = 'Completa ambos campos.';
+                mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/actualizar-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuario, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mensaje.textContent = '¡Credenciales actualizadas!';
+                    mensaje.className = 'text-sm mt-2 font-semibold text-green-600';
+                    document.getElementById('nuevoUser').value = '';
+                    document.getElementById('nuevoPass').value = '';
+                } else {
+                    mensaje.textContent = 'Error al actualizar.';
+                    mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+                }
+            } catch (err) {
+                mensaje.textContent = 'Error de conexión.';
+                mensaje.className = 'text-sm mt-2 font-semibold text-red-600';
+            }
+        }
+
+        document.getElementById('quickOrderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const quickStatus = document.getElementById('quickStatus');
+            quickStatus.textContent = 'Guardando pedido...';
+            quickStatus.className = 'mt-2 text-xs font-semibold text-amber-600';
+
+            const formData = new FormData();
+            formData.append('nombre', document.getElementById('qNombre').value);
+            formData.append('telefono', document.getElementById('qTelefono').value);
+            formData.append('direccion', document.getElementById('qDireccion').value);
+            formData.append('cantidad', document.getElementById('qCantidad').value);
+
+            try {
+                const res = await fetch('/api/pedido', { method: 'POST', body: formData });
+                if (res.ok) {
+                    quickStatus.textContent = '¡Pedido creado!';
+                    quickStatus.className = 'mt-2 text-xs font-semibold text-green-600';
+                    document.getElementById('quickOrderForm').reset();
+                    cargarPedidos();
+                    setTimeout(() => { quickStatus.textContent = ''; }, 3000);
+                } else {
+                    quickStatus.textContent = 'Error al crear.';
+                    quickStatus.className = 'mt-2 text-xs font-semibold text-red-600';
+                }
+            } catch (err) {
+                quickStatus.textContent = 'Error de red.';
+                quickStatus.className = 'mt-2 text-xs font-semibold text-red-600';
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            cargarPedidos();
+            setInterval(cargarPedidos, 10000);
+        });
+    </script>
+</body>
+</html>
