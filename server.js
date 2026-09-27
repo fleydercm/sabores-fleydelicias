@@ -70,7 +70,7 @@ app.post('/api/pedido', upload.single('comprobante'), (req, res) => {
         const cantidad = parseInt(req.body.cantidad) || 1;
         
         // 🌟 El precio unitario ahora llega dinámicamente desde la página web
-        const precioUnitario = parseFloat(req.body.precioUnitario) || 40000;
+        const precioUnitario = parseFloat(req.body.precioUnitario) || 32000;
         const total = cantidad * precioUnitario;
 
         const nuevo = {
